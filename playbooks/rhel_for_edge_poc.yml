@@ -14,8 +14,8 @@
       - "insights-client"
       - "ansible-core"
     container_state: "installed"
-    container_image: "quay.io/admiller/rhel-for-edge-hosting"
-    container_tag: "{{ blueprint_version }}"
+    container_image: ""
+    container_tag: "latest"
     container_port_mapping: "8000:80"
   tasks:
     - name: Install the necessary packages
@@ -27,6 +27,16 @@
           - bash-completion
           - ansible-core
         state: installed
+
+    - name: enable composer service_name
+      ansible.builtin.service:
+        name: osbuild-composer.socket
+        state: started
+    
+    - name: enable composer service_name
+      ansible.builtin.service:
+        name: cockpit.socket
+        state: started
 
     - name: Build with composer-cli a RHEL for Edge Commit
       block:
@@ -43,7 +53,7 @@
         - name: push the blueprint
           ansible.builtin.shell: composer-cli blueprints push /tmp/blueprint.toml
           
-        - name: build that stuff
+        - name: build image with composer-cli
           ansible.builtin.shell: composer-cli compose start-ostree rhel-for-edge-demo rhel-edge-commit
           register: start_ostree
 
@@ -83,51 +93,4 @@
               extra_args: "--build-arg commit={{ ostree_image_uuid }}-commit.tar"
               format: oci
       when: build_ostree == true
-
-    - name: import fedora.iot.container_lifecycle role
-      ansible.builtin.import_role:
-        name: fedora.iot.container_lifecycle
-
-
-- name: Run the ostree update and deploy a container on the RHEL for Edge host
-  hosts: rheledge
-  vars:
-    systemd_units_dir: "/etc/systemd/system/"
-    service_name: "redis"
-    container_state: "installed"
-    container_image: "docker.io/redis"
-    container_tag: "6.0.9"
-    container_port_mapping: "6379:6379"
-    container_healthcheck_cmd: "/usr/local/bin/redis-cli info"
-    container_healthcheck_interval: "30s"
-    container_healthcheck_retries: 5
-    ostree_remote_name: rhel-for-edge-demo
-    ostree_remote_url: 192.168.122.15:8000/
-    ostree_content_url: 192.168.122.15:8000/repo
-    ostree_gpg_verify: "false"
-  tasks:
-    - name: apply templated ostree remote config
-      ansible.builtin.template:
-        src: templates/ostree-remote.j2
-        dest: /etc/ostree/remotes.d/rhel-for-edge.conf
-
-    - name: switch config to stage for rhc 
-      ansible.builtin.copy:
-        src: files/rhc-config.toml
-        dest: /etc/rhc/config.toml
-
-    - name: run rpmostree update
-      fedora.iot.rpm_ostree_upgrade:
-        allow_downgrade: yes
-      notify:
-        - reboot edge node
-
-    - name: import fedora.iot.container_lifecycle role
-      ansible.builtin.import_role:
-        name: fedora.iot.container_lifecycle
-
-  handlers:
-    - name: reboot edge node
-      ansible.builtin.reboot:
-        reboot_timeout: 3600
 

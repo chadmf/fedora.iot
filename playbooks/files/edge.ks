@@ -9,7 +9,7 @@ text
 network --bootproto=dhcp
 user --name=core --groups=wheel --password=edge
 services --enabled=ostree-remount
-ostreesetup --nogpg --url=http://10.0.0.28:8000/repo/ --osname=rhel --remote=edge --ref=rhel/8/x86_64/edge
+ostreesetup --nogpg --url=http://10.0.0.29:8000/repo/ --osname=rhel --remote=edge --ref=rhel/8/x86_64/edge
 
 %post
 # Create a dummy service to tickle insights-client on boot
